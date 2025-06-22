@@ -12,8 +12,11 @@ const Entry = struct {
 
     const Self = @This();
     pub fn init(a:std.mem.Allocator)!Self {
-        const app_path = try std.fs.getAppDataDir(a, "d-clipboard/.bin");
-        defer a.free(app_path);
+        const home = try std.process.getEnvVarOwned(a, "HOME");
+        defer a.free(home);
+        // const app_path = try std.fs.getAppDataDir(a, "d-clipboard/.bin");
+        // defer a.free(app_path);
+        const app_path = try std.fs.path.join(a, &.{home,".config","clipboard",".b"});
         std.fs.makeDirAbsolute(std.fs.path.dirname(app_path).?) catch {};
         return .{
             .arena = std.heap.ArenaAllocator.init(a),
@@ -51,16 +54,28 @@ const Entry = struct {
         {
             var buffer : [2]u8  = undefined;
             _ = try self.file.readAll(&buffer);
+            for (&buffer) |*byte| {
+                byte.* ^= 0x88;
+            }
             const len : u16 = std.mem.readPackedInt(u16, &buffer, 0, .big);
             name = try allocator.alloc(u8, len);
             _ = try self.file.readAll(name);
+            for (name) |*byte| {
+                byte.* ^= 0x88;
+            }
         }
         {
             var buffer : [2]u8  = undefined;
             _ = try self.file.readAll(&buffer);
+            for (&buffer) |*byte| {
+                byte.* ^= 0x88;
+            }
             const len : u16 = std.mem.readPackedInt(u16, &buffer, 0, .big);
             value = try allocator.alloc(u8, len);
             _ = try self.file.readAll(value);
+            for (value) |*byte| {
+                byte.* ^= 0x88;
+            }
         }
         return .{name,value};
     }
@@ -76,7 +91,7 @@ const Entry = struct {
             const name_len = key.len;
             const value_len = value.len;
             const total = name_len + value_len + 4;
-            const buffer = try allocator.alloc(u8, total);
+            var buffer = try allocator.alloc(u8, total);
             defer allocator.free(buffer);
             var name_len_buffer: [2] u8 = undefined;
             std.mem.writePackedInt(u16, &name_len_buffer, 0, @intCast(name_len), .big);
@@ -86,22 +101,19 @@ const Entry = struct {
             @memcpy(buffer[2..2+name_len], key);
             @memcpy(buffer[2+name_len..2+2+name_len], &value_len_buffer);
             @memcpy(buffer[2+2+name_len..], value);
+            for(buffer)|*byte| {
+                byte.* ^= 0x88;
+            }
             try self.file.writeAll(buffer);
         }
      }
 
 };
 
-test Entry {
+test "only one" {
     const act = std.testing.allocator;
-    var entry = try Entry.init(act);
-    defer entry.deinit();
-
-    try entry.readAll();
-    try entry.data.put("key: []const u8", "value: []u8");
-    try entry.writeAll();
-    
-    std.debug.print("{s}\n", .{entry.data.get("key: []const u8").?});
+    _ = act;
+    std.debug.print("{}", .{0xff ^ 0x88});
 }
 fn errHanding(err: argsParser.Error) anyerror!void {
     std.debug.print("{}",.{err});
@@ -114,6 +126,8 @@ pub fn main() !void {
         key: [] const u8 = "",
         value: [] const u8 = "",
         delete: bool = false,
+        /// 列出所有的 key
+        list: bool = false,
 
         // This declares short-hand options for single hyphen
         pub const shorthands = .{
@@ -121,7 +135,8 @@ pub fn main() !void {
             .W = "write",
             .K = "key",
             .V = "value",
-            .D = "delete"
+            .D = "delete",
+            .L = "list"
         };
     }, allocator, .{
         .forward = errHanding,
@@ -136,10 +151,19 @@ pub fn main() !void {
         \\ --key    [-K] key    读取已经存储的内容到剪切板
         \\ --value  [-V] text   存储到本地和--key同时使用
         \\ --delete [-D]        删除key和--key同时使用
+        \\ --list   [-L]        列出所有的key
         \\
         ;
         std.debug.print(help, .{options.executable_name});
         std.process.exit(0);
+    } else if(options.options.list) {
+        var entry = try Entry.init(allocator);
+        defer entry.deinit();
+        try entry.readAll();
+        const iterator = entry.data.iterator();
+        for (iterator.keys[0..iterator.len]) |item| {
+            std.debug.print("{s}\n", .{item});
+        }
     } else if(options.options.print){
         const text = getClipboardText() orelse "";
         std.debug.print("{s}\n", .{text});
