@@ -1,19 +1,12 @@
 const std = @import("std");
-const c = @cImport({
-    @cInclude("stdio.h"); // 引入 libc 中的头文件
-});
 
-const myerror = error {
-    myerror,
-};
 pub fn main() !void {
-    std.debug.print("start\n", .{});
-    try throwerr();
-    defer {
-        std.debug.print("defer print\n", .{});
-    }
 }
 
-fn throwerr() myerror!void {
-    return myerror.myerror;
+test "tranlsate" {
+    var buffer : [@sizeOf(u16)] u8 = undefined;
+    std.mem.writePackedInt(u16, &buffer,0, 7888, .big);
+    std.debug.print("{any}\n", .{buffer});
+    const v_usize = std.mem.readPackedInt(u16, &buffer,0, .big);
+    std.debug.print("{}", .{v_usize});
 }

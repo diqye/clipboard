@@ -12,8 +12,11 @@ pub fn build(b: *std.Build) void {
     });
 
     // 链接 Objective-C 文件 + AppKit 框架
-    exe.addCSourceFile(.{ .file = b.path("clipboard.m"), .flags = &.{} });
+    exe.addCSourceFile(.{ .file = b.path("clipboard.m"), .flags = &.{"-ObjC"} });
+
     exe.linkFramework("AppKit");
+    // exe.addIncludePath(std.Build.LazyPath{.cwd_relative = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"});
+
     exe.root_module.addImport("args", b.dependency("args", .{ .target = target, .optimize = optimize }).module("args"));
     b.installArtifact(exe);
 
