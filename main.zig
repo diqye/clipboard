@@ -118,6 +118,20 @@ test "only one" {
 fn errHanding(err: argsParser.Error) anyerror!void {
     std.debug.print("{}",.{err});
 }
+fn print(executable_name: ?[:0]const u8) void {
+    const help = \\{?s}:
+    \\ --print  [-p]        打印当前剪切板文本
+    \\ --write  [-w] text   写入内容到剪切板
+    \\ --key    [-k] key    读取已经存储到本地的内容到剪切板
+    \\ --value  [-v] text   存储到本地和--key同时使用
+    \\ --delete [-d]        删除key和--key同时使用
+    \\ --list   [-l]        列出所有的key
+    \\ --help   [-h]        打印帮助信息
+    \\
+    ;
+    std.debug.print(help, .{executable_name});
+    std.process.exit(0);
+}
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
     const options = argsParser.parseForCurrentProcess(struct {
@@ -128,35 +142,25 @@ pub fn main() !void {
         delete: bool = false,
         /// 列出所有的 key
         list: bool = false,
+        help: bool = false,
 
         // This declares short-hand options for single hyphen
         pub const shorthands = .{
-            .P = "print",
-            .W = "write",
-            .K = "key",
-            .V = "value",
-            .D = "delete",
-            .L = "list"
+            .p = "print",
+            .w = "write",
+            .k = "key",
+            .v = "value",
+            .d = "delete",
+            .l = "list",
+            .h = "help",
         };
     }, allocator, .{
         .forward = errHanding,
-    }) catch |e| return e;
+    }) catch {};
     defer options.deinit();
 
 
-    if(options.positionals.len != 0) {
-        const help = \\{?s}:
-        \\ --print  [-p]        打印当前剪切板文本
-        \\ --write  [-W] text   写入内容到剪切板
-        \\ --key    [-K] key    读取已经存储的内容到剪切板
-        \\ --value  [-V] text   存储到本地和--key同时使用
-        \\ --delete [-D]        删除key和--key同时使用
-        \\ --list   [-L]        列出所有的key
-        \\
-        ;
-        std.debug.print(help, .{options.executable_name});
-        std.process.exit(0);
-    } else if(options.options.list) {
+    if(options.options.list) {
         var entry = try Entry.init(allocator);
         defer entry.deinit();
         try entry.readAll();
@@ -188,6 +192,10 @@ pub fn main() !void {
         }
         
         try entry.writeAll();
+    } else if(options.options.help) {
+        print(options.executable_name);
+    } else {
+        print(options.executable_name);
     }
 }
 

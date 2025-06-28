@@ -1,12 +1,18 @@
 const std = @import("std");
 
+const A = packed struct {
+    a: u32,
+    b: u64
+};
+
+const B = packed struct {
+    a: [4+8] u8,
+};
 pub fn main() !void {
+    const b  = A{ .a = 1, .b = 2 };
+    const a : B = @bitCast(b);
+    std.debug.print("{},{}", .{a,b});
 }
 
 test "tranlsate" {
-    var buffer : [@sizeOf(u16)] u8 = undefined;
-    std.mem.writePackedInt(u16, &buffer,0, 7888, .big);
-    std.debug.print("{any}\n", .{buffer});
-    const v_usize = std.mem.readPackedInt(u16, &buffer,0, .big);
-    std.debug.print("{}", .{v_usize});
 }

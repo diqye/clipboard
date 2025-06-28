@@ -15,9 +15,10 @@ mv zig-out/bin/clipboard /user/loal/
 ```shell
 clipboard:
  --print  [-p]        打印当前剪切板文本
- --write  [-W] text   写入内容到剪切板
- --key    [-K] key    读取已经存储的内容到剪切板
- --value  [-V] text   存储到本地和--key同时使用
- --delete [-D]        删除key和--key同时使用
- --list   [-L]        列出所有的key
+ --write  [-w] text   写入内容到剪切板
+ --key    [-k] key    读取已经存储到本地的内容到剪切板
+ --value  [-v] text   存储到本地和--key同时使用
+ --delete [-d]        删除key和--key同时使用
+ --list   [-l]        列出所有的key
+ --help   [-h]        打印帮助信息
  ```
