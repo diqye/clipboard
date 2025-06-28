@@ -156,7 +156,7 @@ pub fn main() !void {
         };
     }, allocator, .{
         .forward = errHanding,
-    }) catch {};
+    }) catch {return error.ArgumentError;};
     defer options.deinit();
 
 
