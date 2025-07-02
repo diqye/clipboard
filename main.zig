@@ -112,7 +112,7 @@ const Entry = struct {
 
 
 fn errHanding(err: argsParser.Error) anyerror!void {
-    std.debug.print("{}",.{err});
+    std.debug.print("{}\n",.{err});
 }
 fn print(executable_name: ?[:0]const u8) void {
     const help = \\{?s}:
@@ -120,13 +120,15 @@ fn print(executable_name: ?[:0]const u8) void {
     \\ --write  [-w] text   写入内容到剪切板
     \\ --key    [-k] key    读取已经存储到本地的内容到剪切板
     \\ --value  [-v] text   存储到本地和--key同时使用
+    \\ --paste              将剪切板的内容存储到本地,和 --key 一起使用
     \\ --delete [-d]        删除key和--key同时使用
     \\ --list   [-l]        列出所有的key
     \\ --help   [-h]        打印帮助信息
-    \\ --push               将数据文件推送到gitee上,需要环境变量
+    \\ --push               将数据文件推送到gitee上,需要环境变量:
     \\                      $gitee_clipboard_token=私有令牌
     \\                      $gitee_store_path=https://gitee.com/api/v5/repos/diqye/store/contents/{{path}}
     \\                      其中 {{path}} 为占位符，程序会自动生成名字替换它。
+    \\ --write_pipe         通过管道进来的内容写入剪切板
     \\
     ;
     std.debug.print(help, .{executable_name});
@@ -217,6 +219,7 @@ pub fn main() !void {
     const options = argsParser.parseForCurrentProcess(struct {
         print: bool = false,
         write: [] const u8 = "",
+        write_pipe: bool = false,
         key: [] const u8 = "",
         value: [] const u8 = "",
         delete: bool = false,
@@ -224,6 +227,7 @@ pub fn main() !void {
         list: bool = false,
         help: bool = false,
         push: bool = false,
+        paste: bool = false,
 
         // This declares short-hand options for single hyphen
         pub const shorthands = .{
@@ -237,7 +241,9 @@ pub fn main() !void {
         };
     }, allocator, .{
         .forward = errHanding,
-    }) catch {return error.ArgumentError;};
+    }) catch {
+        std.process.exit(0);
+    };
     defer options.deinit();
 
 
@@ -252,6 +258,14 @@ pub fn main() !void {
     } else if(options.options.print){
         const text = getClipboardText() orelse "";
         std.debug.print("{s}\n", .{text});
+    } else if(options.options.write_pipe){
+        const reader = std.io.getStdIn().reader();
+        // max_size = 1G
+        const text = try reader.readAllAlloc(allocator, 1024 * 1024 * 1024);
+        defer allocator.free(text);
+        const text_c = try allocator.dupeZ(u8, text);
+        defer allocator.free(text_c);
+        setClipboardText(text_c);
     } else if(options.options.write.len != 0) {
         const c_str = try allocator.dupeZ(u8, options.options.write);
         defer allocator.free(c_str);
@@ -265,6 +279,10 @@ pub fn main() !void {
             try entry.data.put(options.options.key, options.options.value);
         } else if(options.options.delete) {
             _ = entry.data.orderedRemove(options.options.key);
+        } else if(options.options.paste) {
+            const text_c = getClipboardText() orelse "";
+            const text: [] const u8 = std.mem.span(text_c);
+            try entry.data.put(options.options.key, text);
         } else {
             const text = entry.data.get(options.options.key) orelse @panic("没有这个key");
             const c_text = try allocator.dupeZ(u8, text);
