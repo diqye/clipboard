@@ -119,6 +119,7 @@ fn print(executable_name: ?[:0]const u8) void {
     \\ --print  [-p]        打印当前剪切板文本
     \\ --write  [-w] text   写入内容到剪切板
     \\ --key    [-k] key    读取已经存储到本地的内容到剪切板
+    \\ --key_s  [-s] seq    通过序号读取已经存储到本地的内容到剪切板
     \\ --value  [-v] text   存储到本地和--key同时使用
     \\ --paste              将剪切板的内容存储到本地,和 --key 一起使用
     \\ --delete [-d]        删除key和--key同时使用
@@ -221,6 +222,7 @@ pub fn main() !void {
         write: [] const u8 = "",
         write_pipe: bool = false,
         key: [] const u8 = "",
+        key_s: u16 = 0,
         value: [] const u8 = "",
         delete: bool = false,
         /// 列出所有的 key
@@ -234,6 +236,7 @@ pub fn main() !void {
             .p = "print",
             .w = "write",
             .k = "key",
+            .s = "key_s",
             .v = "value",
             .d = "delete",
             .l = "list",
@@ -252,8 +255,10 @@ pub fn main() !void {
         defer entry.deinit();
         try entry.readAll();
         const iterator = entry.data.iterator();
-        for (iterator.keys[0..iterator.len]) |item| {
-            std.debug.print("{s}\n", .{item});
+        std.debug.print("-----+----------------------------+\n", .{});
+        for (iterator.keys[0..iterator.len],1..) |item,i| {
+            std.debug.print("|{: >3} | {s: <27}|\n", .{i,item});
+            std.debug.print("-----+----------------------------+\n", .{});
         }
     } else if(options.options.print){
         const text = getClipboardText() orelse "";
@@ -291,6 +296,19 @@ pub fn main() !void {
         }
         
         try entry.writeAll();
+    } else if(options.options.key_s != 0) {
+        var entry = try Entry.init(allocator);
+        defer entry.deinit();
+        try entry.readAll();
+        const values = entry.data.values();
+        if(options.options.key_s > values.len or options.options.key_s < 1) {
+            std.debug.print("Invalid value '{}' for option --key_s", .{options.options.key_s});
+            std.process.exit(0);
+        }
+        const text = values[options.options.key_s - 1];
+        const c_text = try allocator.dupeZ(u8, text);
+        defer allocator.free(c_text);
+        setClipboardText(c_text);
     } else if(options.options.help) {
         print(options.executable_name);
     } else if(options.options.push) {

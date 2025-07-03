@@ -13,10 +13,10 @@ mv zig-out/bin/clipboard /user/loal/
 ## 使用
 
 ```shell
-clipboard:
  --print  [-p]        打印当前剪切板文本
  --write  [-w] text   写入内容到剪切板
  --key    [-k] key    读取已经存储到本地的内容到剪切板
+ --key_s  [-s] seq    通过序号读取已经存储到本地的内容到剪切板
  --value  [-v] text   存储到本地和--key同时使用
  --paste              将剪切板的内容存储到本地,和 --key 一起使用
  --delete [-d]        删除key和--key同时使用
