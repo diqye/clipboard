@@ -14,7 +14,7 @@ mv zig-out/bin/clipboard /user/loal/
 
 ```shell
  --print  [-p]        打印当前剪切板文本
- --write  [-w] text   写入内容到剪切板
+ --write  [-w] text   写入内容到剪切板, 如果text不传从stdin中读取
  --key    [-k] key    读取已经存储到本地的内容到剪切板
  --key_s  [-s] seq    通过序号读取已经存储到本地的内容到剪切板
  --value  [-v] text   存储到本地和--key同时使用

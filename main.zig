@@ -114,10 +114,11 @@ const Entry = struct {
 fn errHanding(err: argsParser.Error) anyerror!void {
     std.debug.print("{}\n",.{err});
 }
-fn print(executable_name: ?[:0]const u8) void {
+fn printHelp(executable_name: ?[:0]const u8) void {
     const help = \\{?s}:
     \\ --print  [-p]        打印当前剪切板文本
     \\ --write  [-w] text   写入内容到剪切板
+    \\ --write_pipe         通过管道进来的内容写入剪切板
     \\ --key    [-k] key    读取已经存储到本地的内容到剪切板
     \\ --key_s  [-s] seq    通过序号读取已经存储到本地的内容到剪切板
     \\ --value  [-v] text   存储到本地和--key同时使用
@@ -129,10 +130,9 @@ fn print(executable_name: ?[:0]const u8) void {
     \\                      $gitee_clipboard_token=私有令牌
     \\                      $gitee_store_path=https://gitee.com/api/v5/repos/diqye/store/contents/{{path}}
     \\                      其中 {{path}} 为占位符，程序会自动生成名字替换它。
-    \\ --write_pipe         通过管道进来的内容写入剪切板
     \\
     ;
-    std.debug.print(help, .{executable_name});
+    print(help, .{executable_name});
     std.process.exit(0);
 }
 fn getDays() ![9]u8 {
@@ -209,17 +209,22 @@ fn push(file: std.fs.File) !void {
     if(start)|start_index| {
         const start_str = response.items[start_index + 11 ..];
         const end = std.mem.indexOfScalar(u8, start_str, '"').?;
-        std.debug.print("Success {} {s}\n", .{result.status,start_str[0..end]});
+        print("Success {} {s}\n", .{result.status,start_str[0..end]});
     } else {
         std.debug.print("Failed {} {s}\n", .{result.status,response.items});
     }
 
 }
+fn print(comptime fmt: [] const u8,args:anytype) void {
+    std.io.getStdOut().writer().print(fmt, args) catch {
+        std.debug.print("stdout print error", .{});
+    };
+}
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
     const options = argsParser.parseForCurrentProcess(struct {
         print: bool = false,
-        write: [] const u8 = "",
+        write: ?[] const u8 = "",
         write_pipe: bool = false,
         key: [] const u8 = "",
         key_s: u16 = 0,
@@ -255,14 +260,14 @@ pub fn main() !void {
         defer entry.deinit();
         try entry.readAll();
         const iterator = entry.data.iterator();
-        std.debug.print("-----+----------------------------+\n", .{});
+        print("-----+----------------------------+\n", .{});
         for (iterator.keys[0..iterator.len],1..) |item,i| {
-            std.debug.print("|{: >3} | {s: <27}|\n", .{i,item});
-            std.debug.print("-----+----------------------------+\n", .{});
+            print("|{: >3} | {s: <27}|\n", .{i,item});
+            print("-----+----------------------------+\n", .{});
         }
     } else if(options.options.print){
         const text = getClipboardText() orelse "";
-        std.debug.print("{s}\n", .{text});
+        print("{s}\n", .{text});
     } else if(options.options.write_pipe){
         const reader = std.io.getStdIn().reader();
         // max_size = 1G
@@ -271,10 +276,10 @@ pub fn main() !void {
         const text_c = try allocator.dupeZ(u8, text);
         defer allocator.free(text_c);
         setClipboardText(text_c);
-    } else if(options.options.write.len != 0) {
-        const c_str = try allocator.dupeZ(u8, options.options.write);
+    } else if(options.options.write) |write_val| {
+        const c_str = try allocator.dupeZ(u8, write_val);
         defer allocator.free(c_str);
-        setClipboardText(c_str.ptr);
+        setClipboardText(c_str);
     } else if(options.options.key.len != 0) {
         var entry = try Entry.init(allocator);
         defer entry.deinit();
@@ -310,13 +315,13 @@ pub fn main() !void {
         defer allocator.free(c_text);
         setClipboardText(c_text);
     } else if(options.options.help) {
-        print(options.executable_name);
+        printHelp(options.executable_name);
     } else if(options.options.push) {
         var entry = try Entry.init(allocator);
         defer entry.deinit();
         try push(entry.file);        
     } else {
-        print(options.executable_name);
+        printHelp(options.executable_name);
     }
 }
 
