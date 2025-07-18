@@ -224,7 +224,7 @@ pub fn main() !void {
     const allocator = std.heap.page_allocator;
     const options = argsParser.parseForCurrentProcess(struct {
         print: bool = false,
-        write: ?[] const u8 = "",
+        write: ?[] const u8 = null,
         write_pipe: bool = false,
         key: [] const u8 = "",
         key_s: u16 = 0,
